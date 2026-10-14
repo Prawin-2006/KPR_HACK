@@ -300,7 +300,7 @@ class ReqIn(BaseModel): facility_id:int; quantity:int=Field(gt=0,le=1000); reaso
 def requests(db:Session=Depends(get_db),u=Depends(current_user)):
     return [req_json(r,db) for r in db.scalars(select(Replenishment).order_by(Replenishment.created_at.desc())).all() if can_access(u,db.get(Facility,r.facility_id))]
 @app.post('/api/v1/replenishments')
-def submit_request(p:ReqIn,db:Session=Depends(get_db),u=Depends(require('worker','officer','admin'))):
+def submit_request(p:ReqIn,db:Session=Depends(get_db),u=Depends(require('worker'))):
     f=db.get(Facility,p.facility_id)
     if not f: raise HTTPException(404,'Facility not found')
     if p.expected_date and p.expected_date<date.today(): raise HTTPException(422,'Expected delivery date cannot be in the past')
@@ -390,14 +390,14 @@ def reorder_recommendations(db:Session=Depends(get_db),u=Depends(current_user)):
     return out
 class DraftIn(BaseModel): facility_id:int; product_id:int
 @app.post('/api/v1/reorder/drafts')
-def create_reorder_draft(p:DraftIn,db:Session=Depends(get_db),u=Depends(require('worker','officer','admin'))):
+def create_reorder_draft(p:DraftIn,db:Session=Depends(get_db),u=Depends(require('worker'))):
     f=db.get(Facility,p.facility_id); product=db.get(Product,p.product_id)
     if not f or not product: raise HTTPException(404,'Facility or product not found')
     assert_access(u,f); calc=reorder_calculation(db,f,p.product_id)
     row=ReorderDraft(facility_id=f.id,product_id=product.id,usable_stock=calc['usable_stock'],confirmed_incoming=calc['confirmed_incoming'],estimated_demand=calc['estimated_lead_demand'],recommended_quantity=calc['recommended_quantity'],expected_date=date.fromisoformat(calc['expected_date']),explanation=calc['explanation'],created_by=u.id)
     db.add(row); db.flush(); audit(db,u,'create_reorder_draft','reorder_draft',row.id,row.explanation); db.commit(); return {'id':row.id,**calc,'status':row.status}
 @app.post('/api/v1/reorder/drafts/{draft_id}/submit')
-def submit_reorder_draft(draft_id:int,db:Session=Depends(get_db),u=Depends(require('worker','officer','admin'))):
+def submit_reorder_draft(draft_id:int,db:Session=Depends(get_db),u=Depends(require('worker'))):
     row=db.get(ReorderDraft,draft_id)
     if not row: raise HTTPException(404,'Draft not found')
     f=db.get(Facility,row.facility_id); assert_access(u,f)

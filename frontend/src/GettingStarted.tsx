@@ -12,6 +12,7 @@ const workerSteps = [
 
 const officerSteps = [
   { title: 'Review stock alerts', detail: 'Start with facilities that may run low before the next delivery.', to: '/risks', action: 'Open risk alerts' },
+  { title: 'Approve worker requests', detail: 'Review facility requests, then record dispatch and confirm delivery.', to: '/workflows#request-approvals', action: 'Review requests' },
   { title: 'Review reorder suggestions', detail: 'Check the stock, demand, and delivery dates behind each suggestion.', to: '/workflows#reorder-review', action: 'Review suggestions' },
   { title: 'Coordinate nearby stock', detail: 'Confirm source stock and approvals before a transfer is dispatched.', to: '/workflows#nearby-stock', action: 'Review transfers' },
 ];
