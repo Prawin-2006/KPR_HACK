@@ -45,7 +45,7 @@ export default function ReplenishmentApprovals() {
   const active = (requests.data || []).filter((request: any) => !['verified', 'rejected'].includes(request.status));
 
   return <section className="panel table-panel" id="request-approvals">
-    <div className="panel-header"><div><h3><Check size={15} /> Worker replenishment requests</h3><p>Review worker requests, then record dispatch, delivery, and stock verification here.</p></div><span className="status-pill pending">{active.length} active</span></div>
+    <div className="panel-header"><div><h3><Check size={15} /> Worker replenishment requests</h3><p>Review worker requests, then record dispatch, delivery, and ASV vial verification here.</p></div><span className="status-pill pending">{active.length} active</span></div>
     {message && <div className="success-banner dismissable">{message}<button type="button" aria-label="Dismiss message" onClick={() => setMessage('')}>×</button></div>}
     {requests.isLoading || facilities.isLoading ? <div className="loading">Loading worker requests…</div> : requests.isError || facilities.isError ? <div className="error-state">Unable to load replenishment requests. Refresh and try again.</div> : active.length ? <div className="table-wrap"><table><thead><tr><th>Request</th><th>Facility</th><th>Quantity</th><th>Priority</th><th>Status</th><th>Expected</th><th>Officer action</th></tr></thead><tbody>
       {active.map((request: any) => <tr key={request.id}>
@@ -59,7 +59,7 @@ export default function ReplenishmentApprovals() {
           {request.status === 'pending' && <><button className="tiny-action approve" onClick={() => update(request.id, 'approve')}>Approve</button><button className="tiny-action reject" onClick={() => { const reason = window.prompt('Reason for returning this request'); if (reason) update(request.id, 'reject', { reason }); }}>Return for review</button></>}
           {request.status === 'approved' && <button className="tiny-action approve" onClick={() => update(request.id, 'dispatch')}>Record dispatch</button>}
           {['dispatched', 'partially_received'].includes(request.status) && <button className="tiny-action" onClick={() => receive(request)}><Truck size={13} /> Record delivery</button>}
-          {request.status === 'received' && <button className="tiny-action approve" onClick={() => verify(request)}>Verify received stock</button>}
+          {request.status === 'received' && <button className="tiny-action approve" onClick={() => verify(request)}>Verify received ASV vials</button>}
         </div></td>
       </tr>)}
     </tbody></table></div> : <div className="empty-state">No worker requests need action. New requests from facilities will appear here.</div>}
