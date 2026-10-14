@@ -4,7 +4,8 @@ from pwdlib import PasswordHash
 from fastapi import HTTPException, Depends
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
-from .models import Session as SessionFactory, User
+from .models import Session as SessionFactory, User, Facility
+from sqlalchemy import select
 passwords=PasswordHash.recommended()
 oauth=OAuth2PasswordBearer(tokenUrl='/api/v1/auth/login')
 SECRET=os.getenv('JWT_SECRET') or secrets.token_urlsafe(32)
@@ -30,4 +31,14 @@ def require(*roles):
 def can_access(user, facility):
     if user.role=='admin': return True
     if user.role=='worker': return user.facility_id==facility.id
-    return user.district==facility.district or user.facility_id==facility.id
+    if user.district==facility.district or user.facility_id==facility.id: return True
+    if user.role=='officer' and user.facility_id:
+        db=SessionFactory()
+        try:
+            ancestors={user.facility_id}; frontier={user.facility_id}
+            while frontier:
+                children=set(db.scalars(select(Facility.id).where(Facility.parent_id.in_(frontier))).all())-ancestors
+                ancestors.update(children); frontier=children
+            return facility.id in ancestors
+        finally: db.close()
+    return False

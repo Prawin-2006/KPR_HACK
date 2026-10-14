@@ -6,8 +6,12 @@ A synthetic-data hackathon MVP for anti-snake venom (ASV) inventory visibility, 
 
 - FastAPI API with JWT login, hashed demo passwords, role-aware facility access, audit records, OpenAPI docs, and SQLite persistence (MySQL-compatible `DATABASE_URL`).
 - Inventory ledger with validated receipts and issues; usable stock excludes expired, quarantined, damaged, and unverified quantities.
+- Product catalogue, product and batch identifiers, batch QC states, expiry-warning acknowledgements/overrides, and auditable transaction history.
+- Physical counts create discrepancies without changing stock; authorized resolution adds a ledger delta. Unresolved or stale counts lower forecast confidence.
 - Explainable risk forecast: coverage, depletion estimate, lead time, projected delivery balance, safety stock and data-quality/confidence labels. Alerts are deduplicated.
-- Facility map and fallback cards with Haversine straight-line proximity estimates. Transfers are suggestions and require verification and approval.
+- Facility hierarchy and role-scoped access, configurable stock policies, explainable reorder drafts, and officer-reviewed indents. No external purchase order is submitted.
+- Facility map and fallback cards with Haversine straight-line proximity estimates. Stock-transfer suggestions require recent source verification, suitable storage/transport, source/destination approval, dispatch and receipt reconciliation.
+- Alert acknowledgement and escalation events are distinct from independently reviewed evaluation labels. Zero-denominator metrics include reasons; stock availability uses dated observations only.
 - Replenishment submission, officer approval/rejection, dispatch, partial receipts and verification. Receipts create inventory ledger entries.
 - Dashboard, risks, inventory, facilities/map, replenishment, evaluation, audit view, and stock CSV report.
 - All seeded facilities and movements are fictional and labeled as synthetic demo data.
@@ -16,7 +20,7 @@ A synthetic-data hackathon MVP for anti-snake venom (ASV) inventory visibility, 
 
 `frontend/` is a React 18, TypeScript and Vite SPA using TanStack Query, Recharts, Leaflet, React Router and Lucide. `backend/` is a FastAPI service using Pydantic and SQLAlchemy 2. SQLite is the default local database. Set `DATABASE_URL` to a MySQL SQLAlchemy URL such as `mysql+pymysql://user:password@host/database` for a MySQL deployment. API endpoints are versioned at `/api/v1`.
 
-Alembic provides the initial schema revision in `backend/migrations/versions/0001_initial.py`. For local setup, the API also creates missing tables on startup for convenience.
+Alembic manages additive schema revisions in `backend/migrations/versions/`. The API applies pending revisions on startup and retains existing transaction and account rows. For a manual migration, run `alembic upgrade head` from `backend/` before seeding.
 
 ## Prerequisites
 
@@ -91,15 +95,19 @@ The demo password is for local demonstration only. Change it and `JWT_SECRET` be
 ## Risk calculations
 
 - **Usable stock:** transaction-derived batch balance for batches that are in date, storage status `usable`, and marked verified.
+- **Quality eligibility:** a batch is usable only when its quality status is `verified`, it is in date, its storage status is usable, and it is physically verified. Expiry-warning acknowledgement or override never changes this rule.
 - **Coverage:** usable quantity ÷ average daily recorded issues when a nonzero demand basis exists. Missing consumption is labeled insufficient; no depletion date is claimed.
-- **Projected stock at delivery:** usable stock + confirmed incoming quantity − average daily use × configured lead days.
+- **Projected stock at delivery:** usable stock + confirmed incoming due by expected delivery − average daily use × configured lead days. Overdue or undated requests are excluded from confirmed incoming.
+- **Reorder draft:** configured target plus estimated lead-time demand minus usable stock and confirmed incoming, rounded up and capped by configured maximum stock. The API returns each input and any missing-data flags.
+- **Physical count:** counted quantity is compared with the ledger snapshot. Resolution is officer/admin-only, rejects a stale snapshot, and records the exact delta as a new adjustment transaction.
+- **Transfer:** a proposal reserves eligible source stock after safety stock. Physical verification, independent source and destination officer approvals, storage/transport checks, dispatch and receipt are required. Source and destination transactions share a transfer ID; partial deliveries remain open for reconciliation.
 - **Severity:** zero stock or coverage shorter than lead time is critical; below minimum or below safety stock at delivery is high; insufficient history is medium; otherwise low.
 - Seeded transactions are synthetic examples, not a validated demand sample. The risk display is a planning estimate, not a guarantee.
 - Transfer distance is Haversine straight-line distance, never a claim about travel time or road route.
 
 ## Evaluation metrics
 
-The evaluation view uses standard precision, recall, F1, specificity, and false-alert-rate definitions. This seed has no independently verified true/false event labels, so those values are explicitly not calculable. Alert acknowledgement is not treated as evidence of correctness. Fulfilment is received requested quantity divided by total requested quantity where requests exist. Facility-days, stockout days, expiry losses and response-time percentiles require longitudinal observations not included in this MVP.
+The evaluation view uses standard precision, recall, F1, specificity, and false-alert-rate definitions from reviewer-entered evidence labels. Acknowledgement is not treated as evidence of correctness. The fictional seed includes two sample labels for demonstration only. Availability and stockout-day counts use dated facility observations; response-time averages use persisted alert events. These small synthetic samples do not establish real-world performance.
 
 ## Tests and build
 
@@ -112,8 +120,10 @@ cd ..\frontend
 npm run build
 ```
 
-Critical tests cover risk math, insufficient history, unusable batch exclusion, authorization, issue validation, and active alert deduplication.
+Tests cover risk math and data quality, quality/expiry exclusion, physical count reconciliation, hierarchy validation, reorder inputs, transfer approvals and partial reconciliation, evidence-based evaluation, authorization, migration backfill/downgrade preservation, and alert deduplication.
 
 ## Limitations and production considerations
 
-This is a hackathon MVP, not a production healthcare system. Advanced incident management, full transfer fulfillment, CSV import, user/facility administration, scheduled evaluation, notification delivery, comprehensive role assignment, statistically validated forecasting, and production-ready Alembic revisions remain future work. There is no real message integration, no patient information, no road-routing provider, and no real-world effectiveness claim. Before production: configure a managed MySQL database, robust migrations/backups, secret rotation, TLS, rate limits, monitoring, privacy and security review, stronger session controls, complete district assignment policy, and operational validation with authorized health-supply stakeholders.
+This is an online-only hackathon MVP, not a production healthcare system. Synthetic sample outcomes are not an operational performance claim. There is no e-Aushadhi or DVDMS integration, no access to government production data, no patient information, and no road-routing provider. Before production: configure a managed database and backups, secret rotation, TLS, rate limits, monitoring, privacy and security review, stronger session controls, complete district assignments, and operational validation with authorized health-supply stakeholders.
+
+The workflow reference is limited to publicly documented e-Aushadhi / DVDMS supply-chain concepts: [Maharashtra MMGPA e-Aushadhi application](https://mmgpa.maharashtra.gov.in/en/service/e-aushadhi-application/) and [C-DAC DVDMS product information](https://www.cdac.gov.in/index.aspx?id=product_details&productId=DrugandVaccineDistributionManagementSystem%28DVDMS%29). VenoTrack is independently implemented and does not claim official integration.
