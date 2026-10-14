@@ -2,11 +2,13 @@
 
 A synthetic-data hackathon MVP for anti-snake venom (ASV) inventory visibility, explainable stockout warnings, location-aware facility coordination, and replenishment workflow tracking. VenoTrack is logistics decision support only. It does not diagnose patients or recommend treatment.
 
+**Product scope is limited to polyvalent anti-snake venom (ASV) vials.** It does not support other medicines, formulations, or units.
+
 ## What works
 
 - FastAPI API with JWT login, hashed demo passwords, role-aware facility access, audit records, OpenAPI docs, and SQLite persistence (MySQL-compatible `DATABASE_URL`).
 - Inventory ledger with validated receipts and issues; usable stock excludes expired, quarantined, damaged, and unverified quantities.
-- Product catalogue, product and batch identifiers, batch QC states, expiry-warning acknowledgements/overrides, and auditable transaction history.
+- A fixed ASV product catalogue, batch identifiers, batch QC states, expiry-warning acknowledgements/overrides, and auditable transaction history. Historical records without an identifiable product remain preserved but are excluded from ASV totals and forecasts.
 - Physical counts create discrepancies without changing stock; authorized resolution adds a ledger delta. Unresolved or stale counts lower forecast confidence.
 - Explainable risk forecast: coverage, depletion estimate, lead time, projected delivery balance, safety stock and data-quality/confidence labels. Alerts are deduplicated.
 - Facility hierarchy and role-scoped access, configurable stock policies, explainable reorder drafts, and officer-reviewed indents. No external purchase order is submitted.
@@ -20,7 +22,7 @@ A synthetic-data hackathon MVP for anti-snake venom (ASV) inventory visibility, 
 
 `frontend/` is a React 18, TypeScript and Vite SPA using TanStack Query, Recharts, Leaflet, React Router and Lucide. `backend/` is a FastAPI service using Pydantic and SQLAlchemy 2. SQLite is the default local database. Set `DATABASE_URL` to a MySQL SQLAlchemy URL such as `mysql+pymysql://user:password@host/database` for a MySQL deployment. API endpoints are versioned at `/api/v1`.
 
-Alembic manages additive schema revisions in `backend/migrations/versions/`. The API applies pending revisions on startup and retains existing transaction and account rows. For a manual migration, run `alembic upgrade head` from `backend/` before seeding.
+Alembic manages schema revisions in `backend/migrations/versions/`. The API applies pending revisions on startup. The ASV scope migration preserves old products, batches, and transactions; disables non-ASV products; quarantines their batches; and reports preserved records and unlinked consumption, request, alert, evaluation, and stock-observation data. Historical records without a product link are never assumed to represent ASV. Administrators can review the report at `/api/v1/admin/asv-scope-migration-report` after signing in. Back up the database before upgrading, especially when it contains operational data. For a manual migration, run `alembic upgrade head` from `backend/` before seeding.
 
 ## Prerequisites
 

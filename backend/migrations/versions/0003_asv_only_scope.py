@@ -43,7 +43,7 @@ def _insert_report(conn, identifier, name, batch_rows, product_id, action, origi
     batch_numbers = sorted(row["batch_number"] for row in batch_rows)
     ids = ",".join(str(int(batch_id)) for batch_id in batch_ids)
     transaction_count = _count(conn, "inventory_transactions", f"batch_id IN ({ids})", {}) if ids else 0
-    workflow_count = _preserved_workflow_count(conn, batch_ids, product_id)
+    workflow_count = len(original_state.get("rows", [])) if action == "unscoped_excluded" else _preserved_workflow_count(conn, batch_ids, product_id)
     conn.execute(
         text(
             "INSERT INTO asv_scope_migration_reports "
@@ -91,6 +91,15 @@ def upgrade():
             "resolve this conflict after backing up the database before retrying the ASV migration."
         )
 
+    if not canonical:
+        conn.execute(
+            text("INSERT INTO products (identifier, name, category, unit, active) VALUES (:identifier, :name, :category, :unit, 1)"),
+            {"identifier": ASV_IDENTIFIER, "name": ASV_NAME, "category": "Anti-snake venom", "unit": "vial"},
+        )
+        canonical = conn.execute(
+            text("SELECT id, identifier, name FROM products WHERE identifier=:identifier"), {"identifier": ASV_IDENTIFIER}
+        ).mappings().one()
+
     if canonical:
         original_product = conn.execute(
             text("SELECT category, unit, active FROM products WHERE id=:id"), {"id": canonical["id"]}
@@ -114,6 +123,25 @@ def upgrade():
             text("UPDATE products SET category='Anti-snake venom', unit='vial', active=1 WHERE id=:id"),
             {"id": canonical["id"]},
         )
+        mismatched = conn.execute(
+            text("SELECT id, batch_number, storage_status, quality_status, verified FROM batches WHERE product_id=:pid AND product<>:name ORDER BY batch_number"),
+            {"pid": canonical["id"], "name": ASV_NAME},
+        ).mappings().all()
+        if mismatched:
+            original_state = {
+                "product_active": True,
+                "product_category": "Anti-snake venom",
+                "product_unit": "vial",
+                "batches": [
+                    {"id": row["id"], "batch_number": row["batch_number"], "storage_status": row["storage_status"], "quality_status": row["quality_status"], "verified": bool(row["verified"])}
+                    for row in mismatched
+                ],
+            }
+            _insert_report(conn, ASV_IDENTIFIER, ASV_NAME, mismatched, canonical["id"], "quarantined_mismatch", original_state)
+            ids = ",".join(str(int(row["id"])) for row in mismatched)
+            conn.execute(
+                text(f"UPDATE batches SET storage_status='quarantined', quality_status='quarantined', verified=0 WHERE id IN ({ids})")
+            )
 
     for product in products:
         if canonical and product["id"] == canonical["id"]:
@@ -161,19 +189,22 @@ def upgrade():
         )
 
 
+
 def downgrade():
     conn = op.get_bind()
     if "asv_scope_migration_reports" not in inspect(conn).get_table_names():
         return
     rows = conn.execute(text("SELECT product_identifier, original_state FROM asv_scope_migration_reports ORDER BY id DESC")).mappings().all()
     for row in rows:
+        if row["product_identifier"] in ("UNLINKED-CONSUMPTION", "UNLINKED-REQUESTS"):
+            continue
         state = json.loads(row["original_state"])
-        if row["product_identifier"] != "UNLINKED":
+        if row["product_identifier"] != "UNLINKED" and "product_active" in state:
             conn.execute(
                 text("UPDATE products SET category=:category, unit=:unit, active=:active WHERE identifier=:identifier"),
                 {"category": state["product_category"], "unit": state["product_unit"], "active": state["product_active"], "identifier": row["product_identifier"]},
             )
-        for batch in state["batches"]:
+        for batch in state.get("batches", []):
             conn.execute(
                 text("UPDATE batches SET storage_status=:storage, quality_status=:quality, verified=:verified WHERE id=:id"),
                 {"storage": batch["storage_status"], "quality": batch["quality_status"], "verified": batch["verified"], "id": batch["id"]},

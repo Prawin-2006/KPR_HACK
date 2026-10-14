@@ -70,6 +70,7 @@ class ConsumptionSummary(Base):
     __tablename__='consumption_summaries'
     id: Mapped[int]=mapped_column(primary_key=True)
     facility_id: Mapped[int]=mapped_column(ForeignKey('facilities.id'), index=True)
+    product_id: Mapped[int|None]=mapped_column(ForeignKey('products.id'), nullable=True, index=True)
     quantity: Mapped[float]=mapped_column(Float)
     period_days: Mapped[int]=mapped_column(Integer)
     source: Mapped[str]=mapped_column(String(40), default='reported')
@@ -78,6 +79,7 @@ class Alert(Base):
     __tablename__='alerts'
     id: Mapped[int]=mapped_column(primary_key=True)
     facility_id: Mapped[int]=mapped_column(ForeignKey('facilities.id'), index=True)
+    product_id: Mapped[int|None]=mapped_column(ForeignKey('products.id'), nullable=True, index=True)
     risk_key: Mapped[str]=mapped_column(String(60))
     severity: Mapped[str]=mapped_column(String(20), index=True)
     explanation: Mapped[str]=mapped_column(Text)
@@ -172,6 +174,7 @@ class EvaluationLabel(Base):
     id: Mapped[int]=mapped_column(primary_key=True)
     alert_id: Mapped[int|None]=mapped_column(ForeignKey('alerts.id'), nullable=True, index=True)
     facility_id: Mapped[int]=mapped_column(ForeignKey('facilities.id'), index=True)
+    product_id: Mapped[int|None]=mapped_column(ForeignKey('products.id'), nullable=True, index=True)
     outcome: Mapped[str]=mapped_column(String(20))
     risk_key: Mapped[str]=mapped_column(String(60),default='stockout')
     evidence: Mapped[str]=mapped_column(Text)
@@ -206,6 +209,7 @@ class DailyObservation(Base):
     __table_args__=(UniqueConstraint('facility_id','observed_date',name='uq_daily_facility_observation'),)
     id: Mapped[int]=mapped_column(primary_key=True)
     facility_id: Mapped[int]=mapped_column(ForeignKey('facilities.id'), index=True)
+    product_id: Mapped[int|None]=mapped_column(ForeignKey('products.id'), nullable=True, index=True)
     observed_date: Mapped[date]=mapped_column(Date)
     usable_quantity: Mapped[int]=mapped_column(Integer)
     observed_by: Mapped[int]=mapped_column(ForeignKey('users.id'))

@@ -1,8 +1,8 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 from app.main import app
-from app.models import Session, Batch, Facility, Transaction, Discrepancy, Alert
+from app.models import Session, Batch, Facility, Transaction, Discrepancy, Alert, Product, User, ReorderDraft, Transfer
 from test_api import token
 
 def test_count_discrepancy_waits_for_officer_resolution():
@@ -127,7 +127,8 @@ def test_evaluation_labels_match_review_window_and_no_alert_true_negative():
         officer=token(c,'officer@venotrack.demo'); auditor=token(c,'auditor@venotrack.demo')
         with Session.begin() as db:
             f=db.scalar(select(Facility).where(Facility.code=='RH-014'))
-            row=Alert(facility_id=f.id,risk_key='label-window-test',severity='medium',explanation='Synthetic test event',recommendation='review',inputs='{}',status='active')
+            product=db.scalar(select(Product).where(Product.identifier=='ASV-POLY-001'))
+            row=Alert(facility_id=f.id,product_id=product.id,risk_key='label-window-test',severity='medium',explanation='Synthetic test event',recommendation='review',inputs='{}',status='active')
             db.add(row); db.flush(); aid,fid=row.id,f.id
         bad=c.post(f'/api/v1/alerts/{aid}/evaluation-label',headers=officer,json={'outcome':'true_positive','evidence':'Independent physical review confirms this synthetic test event.','period_start':(date.today()-timedelta(days=10)).isoformat(),'period_end':(date.today()-timedelta(days=9)).isoformat()})
         assert bad.status_code==422
@@ -138,4 +139,29 @@ def test_evaluation_labels_match_review_window_and_no_alert_true_negative():
         tn=c.post('/api/v1/evaluation/labels',headers=officer,json={'facility_id':fid,'outcome':'true_negative','risk_key':'no-detection-test','evidence':'Independent daily physical verification recorded no shortage.','period_start':period['period_start'],'period_end':period['period_end']})
         assert tn.status_code==200,tn.text
         assert c.post('/api/v1/evaluation/labels',headers=auditor,json={'facility_id':fid,'outcome':'false_negative','risk_key':'no-detection-test','evidence':'Auditor cannot create outcomes.','period_start':period['period_start'],'period_end':period['period_end']}).status_code==403
+
+def test_reorder_and_transfer_cannot_reference_non_asv_inventory():
+    with TestClient(app) as c:
+        worker=token(c)
+        officer=token(c,'officer@venotrack.demo')
+        with Session.begin() as db:
+            src=db.scalar(select(Facility).where(Facility.code=='RH-021'))
+            dst=db.scalar(select(Facility).where(Facility.code=='RH-014'))
+            worker_facility=db.scalar(select(Facility).where(Facility.code=='RH-014'))
+            user=db.scalar(select(User).where(User.email=='worker@venotrack.demo'))
+            product=Product(identifier='LEGACY-ANTIBIOTIC',name='Amoxicillin',category='Anti-snake venom',unit='tablet',active=True)
+            db.add(product); db.flush()
+            batch=Batch(facility_id=src.id,batch_number='LEGACY-TRANSFER-001',product=product.name,product_id=product.id,expiry=date.today()+timedelta(days=100),storage_status='usable',verified=True,quality_status='verified')
+            db.add(batch); db.flush()
+            db.add(Transaction(facility_id=src.id,batch_id=batch.id,kind='receipt',quantity=7,reason='legacy stock',actor_id=user.id))
+            source_id,destination_id,worker_facility_id,product_id,batch_id=src.id,dst.id,worker_facility.id,product.id,batch.id
+            src.last_verified=datetime.now(timezone.utc)
+
+        draft=c.post('/api/v1/reorder/drafts',headers=worker,json={'facility_id':worker_facility_id,'product_id':product_id})
+        assert draft.status_code==422
+        transfer=c.post('/api/v1/transfers',headers=officer,json={'source_facility_id':source_id,'destination_facility_id':destination_id,'batch_id':batch_id,'quantity':1,'note':'legacy batch transfer'})
+        assert transfer.status_code==422
+        with Session() as db:
+            assert db.scalar(select(ReorderDraft).where(ReorderDraft.product_id==product_id)) is None
+            assert db.scalar(select(Transfer).where(Transfer.batch_id==batch_id)) is None
 
