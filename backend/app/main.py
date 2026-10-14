@@ -296,18 +296,23 @@ def label_independent_event(p:IndependentLabelIn,db:Session=Depends(get_db),u=De
 def transactions(db:Session=Depends(get_db),u=Depends(current_user),limit:int=Query(100,ge=1,le=500)):
     return [{'id':t.id,'facility':db.get(Facility,t.facility_id).code,'facility_id':t.facility_id,'batch':db.get(Batch,t.batch_id).batch_number,'batch_id':t.batch_id,'kind':t.kind,'quantity':t.quantity,'reason':t.reason,'created_at':t.created_at.isoformat() if t.created_at else None} for t in db.scalars(select(Transaction).order_by(Transaction.created_at.desc()).limit(limit)).all() if can_access(u,db.get(Facility,t.facility_id))]
 class ReqIn(BaseModel): facility_id:int; quantity:int=Field(gt=0,le=1000); reason:str=Field(min_length=5,max_length=500); priority:str='routine'; expected_date:date|None=None
+@app.get('/api/v1/replenishment/destinations')
+def replenishment_destinations(db:Session=Depends(get_db),u=Depends(require('worker'))):
+    if not u.facility_id: raise HTTPException(403,'Worker must be assigned to a facility to submit a request')
+    return [{'id':f.id,'code':f.code,'name':f.name,'district':f.district} for f in db.scalars(select(Facility).order_by(Facility.code)).all()]
 @app.get('/api/v1/replenishments')
 def requests(db:Session=Depends(get_db),u=Depends(current_user)):
-    return [req_json(r,db) for r in db.scalars(select(Replenishment).order_by(Replenishment.created_at.desc())).all() if can_access(u,db.get(Facility,r.facility_id))]
+    return [req_json(r,db) for r in db.scalars(select(Replenishment).order_by(Replenishment.created_at.desc())).all() if can_access(u,db.get(Facility,r.facility_id)) or (u.role=='worker' and r.created_by==u.id)]
 @app.post('/api/v1/replenishments')
 def submit_request(p:ReqIn,db:Session=Depends(get_db),u=Depends(require('worker'))):
     f=db.get(Facility,p.facility_id)
     if not f: raise HTTPException(404,'Facility not found')
     if p.expected_date and p.expected_date<date.today(): raise HTTPException(422,'Expected delivery date cannot be in the past')
     if p.priority not in ('routine','high','urgent'): raise HTTPException(422,'Unsupported request priority')
-    assert_access(u,f); code=f"VR-{date.today().year}-{int(datetime.now().timestamp())%100000:05d}"
+    if not u.facility_id: raise HTTPException(403,'Worker must be assigned to a facility to submit a request')
+    code=f"VR-{date.today().year}-{int(datetime.now().timestamp())%100000:05d}"
     r=Replenishment(request_code=code,facility_id=f.id,quantity=p.quantity,reason=p.reason,priority=p.priority,status='pending',expected_date=p.expected_date,created_by=u.id)
-    db.add(r); db.flush(); audit(db,u,'submit','replenishment',r.id,p.reason); db.commit(); db.refresh(r); return req_json(r,db)
+    db.add(r); db.flush(); audit(db,u,'submit','replenishment',r.id,f'Destination {f.code}; {p.reason}'); db.commit(); db.refresh(r); return req_json(r,db)
 class ActionIn(BaseModel): reason:str|None=None; quantity:int|None=None; batch_id:int|None=None
 @app.post('/api/v1/replenishments/{rid}/{action}')
 def action_request(rid:int,action:str,p:ActionIn,db:Session=Depends(get_db),u=Depends(current_user)):
