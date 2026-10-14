@@ -1,0 +1,1 @@
+This migration initializes the SQLAlchemy schema. Apply with `alembic upgrade head` from the backend directory. The seed script creates fictional demo rows after schema setup.

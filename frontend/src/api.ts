@@ -1,0 +1,6 @@
+import axios from 'axios';
+export const api=axios.create({baseURL:import.meta.env.VITE_API_URL||'http://localhost:8000/api/v1'});
+api.interceptors.request.use(c=>{const t=localStorage.getItem('vt-token');if(t)c.headers.Authorization=`Bearer ${t}`;return c});
+api.interceptors.response.use(r=>r,e=>{if(e.response?.status===401){localStorage.removeItem('vt-token');localStorage.removeItem('vt-user');window.location.href='/login'}return Promise.reject(e)});
+export type User={id:number;name:string;email:string;role:string;district?:string;facility_id?:number};
+export type Facility={id:number;code:string;name:string;kind:string;district:string;latitude:number|null;longitude:number|null;usable_stock:number;reported_stock:number;last_verified:string|null;lead_days:number;expiry_60_days:number;risk:{severity:string;coverage_days:number|null;projected_stock_at_delivery:number|null;depletion_date:string|null;expected_delivery_date:string|null;explanation:string;recommended_action:string;data_quality:string;confidence:string;shortage_before_delivery:boolean;usable_stock:number};batches:{id:number;batch_number:string;expiry:string|null;storage_status:string;verified:boolean;quantity:number;usable_quantity:number}[];transactions?:any[]};
