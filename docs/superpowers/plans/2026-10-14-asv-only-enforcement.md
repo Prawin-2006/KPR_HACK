@@ -36,12 +36,13 @@
 - Create: `backend/migrations/versions/0003_asv_only_scope.py`
 - Create: `backend/migrations/versions/0004_asv_forecast_scope.py`
 - Create: `backend/migrations/versions/0005_asv_evaluation_scope.py`
+- Create: `backend/migrations/versions/0006_asv_catalog_reconcile.py`
 - Test: `backend/tests/test_asv_scope.py`
 - Modify: `backend/tests/test_migrations.py` (create if absent)
 
 **Interfaces:**
 - Produces `ASV_PRODUCT_IDENTIFIER = "ASV-POLY-001"`, `ASV_PRODUCT_NAME = "Polyvalent Anti-Snake Venom"`, `ASV_CATEGORY = "Anti-snake venom"`, `ASV_UNIT = "vial"`, plus `is_supported_product(product) -> bool` and `is_supported_batch(batch, product) -> bool`.
-- Migration preserves all out-of-scope rows, changes non-canonical products to inactive and batches to quarantined, links demand, alerts, labels, and stock observations to the ASV product, and reports unlinked legacy rows to administrators.
+- Migration preserves all out-of-scope rows, changes non-canonical products to inactive and batches to quarantined, links demand, alerts, labels, and stock observations to the ASV product, ensures the ASV catalog exists for databases already at revision 0003, and reports unlinked legacy rows to administrators.
 
 - [x] **Step 1: Write failing scope and migration tests**
 

@@ -153,6 +153,8 @@ def test_followup_migrations_upgrade_an_existing_0003_database(tmp_path, monkeyp
             for table in ("consumption_summaries", "alerts", "evaluation_labels", "daily_stock_observations")
         ]
         reports = conn.execute(text("SELECT product_identifier FROM asv_scope_migration_reports ORDER BY product_identifier")).scalars().all()
+        canonical = conn.execute(text("SELECT identifier, name, category, unit, active FROM products WHERE identifier='ASV-POLY-001'")).one_or_none()
     assert {"scope_action", "original_state"} <= columns
     assert all(product_id_columns)
     assert {"UNLINKED-CONSUMPTION", "UNLINKED-ALERTS", "UNLINKED-EVALUATION", "UNLINKED-OBSERVATIONS"} <= set(reports)
+    assert canonical == ("ASV-POLY-001", "Polyvalent Anti-Snake Venom", "Anti-snake venom", "vial", 1)
