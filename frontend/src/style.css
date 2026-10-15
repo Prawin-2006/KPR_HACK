@@ -201,3 +201,5 @@ table td small{font-size:12px}
 @media(max-width:560px){.evaluation-summary>p{font-size:13px}.confusion-summary{grid-template-columns:1fr 1fr}.evaluation-metric-main{gap:7px}.evaluation-metric-main>strong{font-size:16px}.evaluation-panel .service-list>div{flex-direction:column}.evaluation-panel .service-list b{max-width:none;text-align:left}.audit-panel .panel-header{align-items:flex-start;flex-direction:column}.response-grid{grid-template-columns:1fr}}
 
 .synthetic-status{display:inline-flex;align-items:center;border:1px solid #eff0e3;background:#fbfcf5;border-radius:5px;padding:4px 7px;color:#77794f;font-size:10px;font-weight:700}.chart-range-label{cursor:default}
+
+.map-note{max-width:560px;text-align:right;line-height:1.45}@media(max-width:560px){.map-note{text-align:left}}
