@@ -14,6 +14,7 @@ Extend Facilities & map so staff can understand facility branches and follow bot
 ## Facility hierarchy
 
 - Build the visible branch tree from the existing `parent_id` relationships in the authorized facilities response.
+- Keep every facility in the authorized facilities response visible in the map and list, including facilities outside the selected facility's branch. Selecting a facility highlights its own parent/child branch without hiding peer facilities.
 - Show each authorized facility's parent and authorized child facilities in the map details/list, and draw a distinct connector between map markers when both facilities are in the user's authorized scope and have coordinates.
 - Selecting a facility highlights its branch relationships and allows selecting a child or parent from the details.
 - Do not display names, stock quantities, or map links for facilities that are outside the user's authorized scope. Hide a hierarchy edge when either endpoint is not in the authorized result.
