@@ -42,10 +42,10 @@
 - Both series aggregate only supported ASV batch transactions at this facility where `kind == 'issue'`; buckets with no issues return quantity `0`.
 - Extend `GET /api/v1/transfers` objects with `dispatched_at: ISO-datetime | null`.
 
-- [ ] Add an internal helper in `backend/app/main.py` that builds complete weekly and monthly buckets and aggregates ASV issue transactions by facility and transaction date.
-- [ ] Add the helper result to `facility_detail` after the existing `assert_access` check; query supported batches only and leave the existing `transactions` response compatible.
-- [ ] Add nullable `dispatched_at` serialization to `transfer_json` without changing transfer states or authorization behavior.
-- [ ] Review the facility-detail query for empty batches/history and inspect transfer JSON for null and populated dispatch timestamps.
+- [x] Add an internal helper in `backend/app/main.py` that builds complete weekly and monthly buckets and aggregates ASV issue transactions by facility and transaction date.
+- [x] Add the helper result to `facility_detail` after the existing `assert_access` check; query supported batches only and leave the existing `transactions` response compatible.
+- [x] Add nullable `dispatched_at` serialization to `transfer_json` without changing transfer states or authorization behavior.
+- [x] Review the facility-detail query for empty batches/history and inspect transfer JSON for null and populated dispatch timestamps.
 
 ### Task 2: Add selected-facility details, usage charts, and simulated transfer map
 
@@ -60,13 +60,13 @@
 - Render one active route per dispatched/partially received transfer only when source and destination facilities both have coordinates. Use an on-screen repeating forward-and-back interpolation for the marker; label it “Simulated movement · not GPS”. Show transfer code, endpoints, status, and outstanding vials without showing a progress percentage or ETA.
 - Poll transfer statuses every 10 seconds and stop marker animation when the transfer leaves an in-transit state. Facilities with missing coordinates or no active transfer show the existing facility markers and a concise map note/empty state.
 
-- [ ] Query transfer state with a 10-second refresh and query scoped reorder recommendations; initialize selected facility from an explicit map/list interaction, falling back to the first visible facility.
-- [ ] Fetch selected facility detail by ID and render the selected-facility summary under the map with availability, recommendation explanation/data flags, and actual next-expiry batch details.
-- [ ] Render seven daily and six monthly issue charts from the API buckets and show a specific empty-history message when all ledger issue quantities are zero or unavailable.
-- [ ] Wire map markers and facility cards to one selection state; keep map/list toggle and facility search behavior intact.
-- [ ] Filter active transfers by status and valid endpoint coordinates, draw straight-line route polylines, and animate a distinct marker with a repeating forward-and-back on-screen position. Display the explicit simulated/non-GPS label and transfer details.
-- [ ] Add responsive styles for the detail panel, paired charts, in-transit card, and pulsing/blinking marker without obscuring facility markers or map controls.
-- [ ] Run `npm run build` from `frontend/` and review the updated Facilities page in the running demo, including selected facility, no-history/expiry states where available, and active simulated transfer presentation.
+- [x] Query transfer state with a 10-second refresh and query scoped reorder recommendations; initialize selected facility from an explicit map/list interaction, falling back to the first visible facility.
+- [x] Fetch selected facility detail by ID and render the selected-facility summary under the map with availability, recommendation explanation/data flags, and actual next-expiry batch details.
+- [x] Render seven daily and six monthly issue charts from the API buckets and show a specific empty-history message when all ledger issue quantities are zero or unavailable.
+- [x] Wire map markers and facility cards to one selection state; keep map/list toggle and facility search behavior intact.
+- [x] Filter active transfers by status and valid endpoint coordinates, draw straight-line route polylines, and animate a distinct marker with a repeating forward-and-back on-screen position. Display the explicit simulated/non-GPS label and transfer details.
+- [x] Add responsive styles for the detail panel, paired charts, in-transit card, and pulsing/blinking marker without obscuring facility markers or map controls.
+- [x] Run `npm run build` from `frontend/` and review the updated Facilities page in the running demo, including selected-facility, no-history, expiry, and no-active-transfer states.
 
 ## Self-Review
 
@@ -74,3 +74,4 @@
 - Types and fields align with current API names: `recommended_quantity`, `explanation`, `data_flags`, `outstanding`, `status`, `source_facility_id`, and `destination_facility_id`.
 - No real location, ETA, procurement, or transfer authorization behavior is introduced.
 - No automated tests are added or run; validation uses API inspection and the production frontend build.
+- The current demo dataset has no dispatched transfer; the empty state was reviewed, and the animated marker path was inspected in code but could not be shown with a live demo record.

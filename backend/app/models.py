@@ -104,6 +104,7 @@ class Replenishment(Base):
     created_at: Mapped[datetime]=mapped_column(DateTime(timezone=True), server_default=func.now())
     approved_at: Mapped[datetime|None]=mapped_column(DateTime(timezone=True), nullable=True)
     dispatched_at: Mapped[datetime|None]=mapped_column(DateTime(timezone=True), nullable=True)
+    received_at: Mapped[datetime|None]=mapped_column(DateTime(timezone=True), nullable=True)
     notes: Mapped[str]=mapped_column(Text, default='')
 class Audit(Base):
     __tablename__='audit_logs'

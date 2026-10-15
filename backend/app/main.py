@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 from contextlib import asynccontextmanager
 import json, math, csv, io
@@ -150,18 +150,54 @@ def dashboard(db:Session=Depends(get_db),u=Depends(current_user)):
 
 def req_json(r,db):
     f=db.get(Facility,r.facility_id)
-    return {'id':r.id,'request_code':r.request_code,'facility_id':r.facility_id,'facility':f.code if f else '','facility_name':f.name if f else '', 'product_id':r.product_id,'product':ASV_PRODUCT_NAME,'unit':ASV_UNIT,'quantity':r.quantity,'received':r.received,'outstanding':r.quantity-r.received,'reason':r.reason,'priority':r.priority,'status':r.status,'expected_date':r.expected_date.isoformat() if r.expected_date else None,'created_at':r.created_at.isoformat() if r.created_at else None,'notes':r.notes}
+    return {'id':r.id,'request_code':r.request_code,'facility_id':r.facility_id,'facility':f.code if f else '','facility_name':f.name if f else '', 'product_id':r.product_id,'product':ASV_PRODUCT_NAME,'unit':ASV_UNIT,'quantity':r.quantity,'received':r.received,'outstanding':r.quantity-r.received,'reason':r.reason,'priority':r.priority,'status':r.status,'expected_date':r.expected_date.isoformat() if r.expected_date else None,'created_at':r.created_at.isoformat() if r.created_at else None,'approved_at':r.approved_at.isoformat() if r.approved_at else None,'dispatched_at':r.dispatched_at.isoformat() if r.dispatched_at else None,'received_at':r.received_at.isoformat() if r.received_at else None,'notes':r.notes}
 @app.get('/api/v1/facilities')
 def facilities(db:Session=Depends(get_db),u=Depends(current_user),q:str|None=None):
     fs=db.scalars(select(Facility).order_by(Facility.code)).all(); fs=[f for f in fs if can_access(u,f)]
     if q: fs=[f for f in fs if q.lower() in f.name.lower() or q.lower() in f.code.lower() or q.lower() in f.district.lower()]
     return [facility_json(db,f) for f in fs]
+
+def facility_usage_summary(db,facility_id,batch_ids,today=None):
+    today=today or date.today()
+    week_start=today-timedelta(days=6)
+    month_starts=[]
+    for offset in range(5,-1,-1):
+        month_index=today.year*12+today.month-1-offset
+        year,month=divmod(month_index,12)
+        month_starts.append(date(year,month+1,1))
+    weekly={week_start+timedelta(days=offset):0 for offset in range(7)}
+    monthly={month.strftime('%Y-%m'):0 for month in month_starts}
+    if batch_ids:
+        first_date=min(week_start,month_starts[0])
+        end_date=today+timedelta(days=1)
+        issues=db.scalars(select(Transaction).where(
+            Transaction.facility_id==facility_id,
+            Transaction.batch_id.in_(batch_ids),
+            Transaction.kind=='issue',
+            Transaction.created_at>=datetime.combine(first_date,time.min),
+            Transaction.created_at<datetime.combine(end_date,time.min),
+        )).all()
+        for transaction in issues:
+            if not transaction.created_at:
+                continue
+            transaction_date=transaction.created_at.date()
+            if transaction_date in weekly:
+                weekly[transaction_date]+=transaction.quantity
+            key=transaction_date.strftime('%Y-%m')
+            if key in monthly:
+                monthly[key]+=transaction.quantity
+    return {
+        'weekly':[{'period':day.isoformat(),'quantity':quantity} for day,quantity in weekly.items()],
+        'monthly':[{'period':month.strftime('%Y-%m'),'label':month.strftime('%b %y'),'quantity':monthly[month.strftime('%Y-%m')]} for month in month_starts],
+    }
+
 @app.get('/api/v1/facilities/{fid}')
 def facility_detail(fid:int,db:Session=Depends(get_db),u=Depends(current_user)):
     f=db.get(Facility,fid)
     if not f: raise HTTPException(404,'Facility not found')
     assert_access(u,f); data=facility_json(db,f)
     batch_ids=[b.id for b in active_batches(db,fid)]
+    data['usage']=facility_usage_summary(db,fid,batch_ids)
     data['transactions']=[{'id':t.id,'kind':t.kind,'quantity':t.quantity,'reason':t.reason,'created_at':t.created_at.isoformat() if t.created_at else None} for t in db.scalars(select(Transaction).where(Transaction.facility_id==fid,Transaction.batch_id.in_(batch_ids)).order_by(Transaction.created_at.desc()).limit(50)).all()] if batch_ids else []
     return data
 class ProductIn(BaseModel): identifier:str=Field(min_length=2,max_length=80); name:str=Field(min_length=2,max_length=160); category:str='Anti-snake venom'; unit:str='vial'
@@ -412,7 +448,7 @@ def action_request(rid:int,action:str,p:ActionIn,db:Session=Depends(get_db),u=De
         if not b or b.facility_id!=f.id or b.storage_status!='usable' or not b.expiry or b.expiry<date.today(): raise HTTPException(422,'Select a suitable batch at destination')
         require_supported_batch(db,b)
         if r.product_id and b.product_id!=r.product_id: raise HTTPException(422,'Delivery batch does not match the requested product')
-        r.received+=qty; r.status='received' if r.received==r.quantity else 'partially_received'
+        r.received+=qty; r.status='received' if r.received==r.quantity else 'partially_received'; r.received_at=datetime.now(timezone.utc)
         db.add(Transaction(facility_id=f.id,batch_id=b.id,kind='receipt',quantity=qty,reason=f'Replenishment {r.request_code} delivery',actor_id=u.id));
     elif action=='verify':
         if r.status!='received': raise HTTPException(409,'Request must be fully received before verification')
@@ -512,7 +548,7 @@ def transfers(db:Session=Depends(get_db),u=Depends(current_user)):
 class TransferIn(BaseModel): source_facility_id:int; destination_facility_id:int; batch_id:int; quantity:int=Field(gt=0); note:str=Field(min_length=3,max_length=300)
 def transfer_json(t,db):
     src=db.get(Facility,t.source_facility_id); dst=db.get(Facility,t.destination_facility_id); b=db.get(Batch,t.batch_id)
-    return {'id':t.id,'code':t.transfer_code,'source_facility_id':t.source_facility_id,'source':src.code,'destination_facility_id':t.destination_facility_id,'destination':dst.code,'batch_id':t.batch_id,'batch_number':b.batch_number,'quantity':t.quantity,'received_quantity':t.received_quantity,'outstanding':max(0,t.quantity-t.received_quantity),'status':t.status,'verified_by':t.verified_by,'verified_at':t.verified_at.isoformat() if t.verified_at else None,'source_approved':bool(t.source_approved_by),'source_approved_by':t.source_approved_by,'destination_approved':bool(t.destination_approved_by),'destination_approved_by':t.destination_approved_by,'storage_suitable':t.storage_suitable,'transport_suitable':t.transport_suitable}
+    return {'id':t.id,'code':t.transfer_code,'source_facility_id':t.source_facility_id,'source':src.code,'destination_facility_id':t.destination_facility_id,'destination':dst.code,'batch_id':t.batch_id,'batch_number':b.batch_number,'quantity':t.quantity,'received_quantity':t.received_quantity,'outstanding':max(0,t.quantity-t.received_quantity),'status':t.status,'dispatched_at':t.dispatched_at.isoformat() if t.dispatched_at else None,'received_at':t.received_at.isoformat() if t.received_at else None,'verified_by':t.verified_by,'verified_at':t.verified_at.isoformat() if t.verified_at else None,'source_approved':bool(t.source_approved_by),'source_approved_by':t.source_approved_by,'destination_approved':bool(t.destination_approved_by),'destination_approved_by':t.destination_approved_by,'storage_suitable':t.storage_suitable,'transport_suitable':t.transport_suitable}
 @app.get('/api/v1/transfers')
 def transfer_list(db:Session=Depends(get_db),u=Depends(current_user)):
     return [transfer_json(t,db) for t in db.scalars(select(Transfer).order_by(Transfer.id.desc())).all() if supported_batch(db,db.get(Batch,t.batch_id)) and (can_access(u,db.get(Facility,t.source_facility_id)) or can_access(u,db.get(Facility,t.destination_facility_id)))]
