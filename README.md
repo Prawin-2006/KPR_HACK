@@ -109,7 +109,7 @@ The demo password is for local demonstration only. Change it and `JWT_SECRET` be
 
 ## Evaluation metrics
 
-The evaluation view uses standard precision, recall, F1, specificity, and false-alert-rate definitions from reviewer-entered evidence labels. Acknowledgement is not treated as evidence of correctness. The fictional seed includes two sample labels for demonstration only. Availability and stockout-day counts use dated facility observations; response-time averages use persisted alert events. These small synthetic samples do not establish real-world performance.
+The evaluation view calculates accuracy ((TP + TN) ÷ all reviewed labels), precision, recall, F1, specificity, and false-alert rate from independently reviewed evidence labels. The seeded illustrative scenario has TP=4, FP=1, FN=1, and TN=4, yielding 80% accuracy, precision, recall, F1, and specificity, and a 20% false-alert rate. These fictional labels demonstrate the calculations only; they are not model-performance evidence. Acknowledgement is not treated as evidence of correctness. The seeded synthetic evaluation scenario contains ten fictional reviewed labels for demonstration only. Availability and stockout-day counts use dated facility observations; response-time averages use persisted alert events. These small synthetic samples do not establish real-world performance.
 
 ## Tests and build
 
