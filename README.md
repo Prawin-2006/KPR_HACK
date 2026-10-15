@@ -16,7 +16,7 @@ A synthetic-data hackathon MVP for anti-snake venom (ASV) inventory visibility, 
 - Alert acknowledgement and escalation events are distinct from independently reviewed evaluation labels. Zero-denominator metrics include reasons; stock availability uses dated observations only.
 - Replenishment submission, officer approval/rejection, dispatch, partial receipts and verification. Receipts create inventory ledger entries.
 - Dashboard, risks, inventory, facilities/map, replenishment, evaluation, audit view, and stock CSV report.
-- All seeded facilities and movements are fictional and labeled as synthetic demo data.
+- All seeded facilities and movements are fictional and labeled as synthetic demo data. Seed coordinates are illustrative; straight-line distances are not road routes or live tracking.
 
 ## Architecture
 
@@ -104,7 +104,7 @@ The demo password is for local demonstration only. Change it and `JWT_SECRET` be
 - **Physical count:** counted quantity is compared with the ledger snapshot. Resolution is officer/admin-only, rejects a stale snapshot, and records the exact delta as a new adjustment transaction.
 - **Transfer:** a proposal reserves eligible source stock after safety stock. Physical verification, independent source and destination officer approvals, storage/transport checks, dispatch and receipt are required. Source and destination transactions share a transfer ID; partial deliveries remain open for reconciliation.
 - **Severity:** zero stock or coverage shorter than lead time is critical; below minimum or below safety stock at delivery is high; insufficient history is medium; otherwise low.
-- Seeded transactions are synthetic examples, not a validated demand sample. The risk display is a planning estimate, not a guarantee.
+- Seeded transactions are synthetic examples, not a validated demand sample. The risk display is a rule-based planning estimate, not a trained ML model or guarantee.
 - Transfer distance is Haversine straight-line distance, never a claim about travel time or road route.
 
 ## Evaluation metrics

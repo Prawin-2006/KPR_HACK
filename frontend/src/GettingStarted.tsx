@@ -28,7 +28,7 @@ export default function GettingStarted({ role }: { role: Role }) {
           <span className="getting-started-icon"><BookOpen size={17} /></span>
           <div>
             <h2 id="getting-started-title">{heading}</h2>
-            <p>{isWorker ? 'Use these steps to keep facility ASV vial information current.' : 'A practical order for reviewing risks, requests, and facility stock.'}</p>
+            <p>{isWorker ? 'Use these steps to keep facility ASV vial information current.' : 'A practical order for reviewing risks, requests, and facility stock.'} Synthetic demo records; risk levels are rule-based planning estimates.</p>
           </div>
         </div>
         <button className="guide-toggle" type="button" aria-expanded={!collapsed} aria-controls="getting-started-steps" onClick={() => setCollapsed(!collapsed)}>
