@@ -8,10 +8,10 @@ def seed():
     with Session.begin() as db:
         if db.scalar(select(User.id).limit(1)): return
         facilities=[
-          Facility(code='RH-014',name='Kothapalli Rural Health Sub-centre',kind='Sub-centre',district='Coimbatore Rural',latitude=11.0168,longitude=76.9558,phone='+91 422 555 0140',lead_days=6,minimum_stock=10,safety_stock=8),
-          Facility(code='RH-021',name='Mettupalayam Health Sub-centre',kind='Sub-centre',district='Coimbatore Rural',latitude=11.3000,longitude=76.9400,phone='+91 422 555 0210',lead_days=4,minimum_stock=10,safety_stock=8,last_verified=datetime.now(timezone.utc)-timedelta(days=1)),
-          Facility(code='RH-033',name='Annur Rural Health Sub-centre',kind='Sub-centre',district='Coimbatore Rural',latitude=11.2300,longitude=77.1050,phone='+91 422 555 0330',lead_days=5,minimum_stock=10,safety_stock=8),
-          Facility(code='WH-001',name='Coimbatore District Medical Store',kind='Warehouse',district='Coimbatore Rural',latitude=11.0350,longitude=77.0200,phone='+91 422 555 0001',lead_days=1,minimum_stock=25,safety_stock=20)]
+          Facility(code='RH-014',name='Kothapalli Rural Health Sub-centre',kind='Sub-centre',district='Coimbatore Rural',latitude=11.0168,longitude=76.9558,lead_days=6,minimum_stock=10,safety_stock=8),
+          Facility(code='RH-021',name='Mettupalayam Health Sub-centre',kind='Sub-centre',district='Coimbatore Rural',latitude=11.3000,longitude=76.9400,lead_days=4,minimum_stock=10,safety_stock=8,last_verified=datetime.now(timezone.utc)-timedelta(days=1)),
+          Facility(code='RH-033',name='Annur Rural Health Sub-centre',kind='Sub-centre',district='Coimbatore Rural',latitude=11.2300,longitude=77.1050,lead_days=5,minimum_stock=10,safety_stock=8),
+          Facility(code='WH-001',name='Coimbatore District Medical Store',kind='Warehouse',district='Coimbatore Rural',latitude=11.0350,longitude=77.0200,lead_days=1,minimum_stock=25,safety_stock=20)]
         db.add_all(facilities); db.flush()
         for f in facilities[:3]: f.parent_id=facilities[3].id
         product=Product(identifier='ASV-POLY-001',name='Polyvalent Anti-Snake Venom',category='Anti-snake venom',unit='vial')
